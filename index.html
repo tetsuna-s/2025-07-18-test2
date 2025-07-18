@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クッキークリッカー</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #764ba2;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        .score-display {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .cookie-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #f0f0f0, #cacaca);
+            border: none;
+            cursor: pointer;
+            font-size: 4em;
+            transition: transform 0.1s;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+            margin: 20px auto;
+            display: block;
+        }
+
+        .cookie-button:hover {
+            transform: scale(1.05);
+        }
+
+        .cookie-button:active {
+            transform: scale(0.95);
+        }
+
+        .upgrades {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .upgrade-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upgrade-button:hover:not(:disabled) {
+            background: #5a67d8;
+        }
+
+        .upgrade-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .per-second {
+            font-size: 1.2em;
+            color: #764ba2;
+            margin-bottom: 20px;
+        }
+
+        .floating-text {
+            position: fixed;
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            pointer-events: none;
+            animation: float-up 1s ease-out forwards;
+        }
+
+        @keyframes float-up {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🍪 クッキークリッカー</h1>
+        <div class="score-display">
+            クッキー: <span id="cookie-count">0</span>
+        </div>
+        <div class="per-second">
+            毎秒: <span id="per-second">0</span> クッキー
+        </div>
+        
+        <button class="cookie-button" id="cookie-btn" onclick="clickCookie()">🍪</button>
+        
+        <div class="upgrades">
+            <button class="upgrade-button" id="cursor-btn" onclick="buyUpgrade('cursor')">
+                <span>カーソル (毎秒 +1)</span>
+                <span>コスト: <span id="cursor-cost">10</span></span>
+            </button>
+            
+            <button class="upgrade-button" id="grandma-btn" onclick="buyUpgrade('grandma')">
+                <span>おばあちゃん (毎秒 +5)</span>
+                <span>コスト: <span id="grandma-cost">100</span></span>
+            </button>
+            
+            <button class="upgrade-button" id="farm-btn" onclick="buyUpgrade('farm')">
+                <span>クッキー農場 (毎秒 +20)</span>
+                <span>コスト: <span id="farm-cost">1000</span></span>
+            </button>
+            
+            <button class="upgrade-button" id="factory-btn" onclick="buyUpgrade('factory')">
+                <span>クッキー工場 (毎秒 +100)</span>
+                <span>コスト: <span id="factory-cost">10000</span></span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let cookies = 0;
+        let cookiesPerSecond = 0;
+        
+        const upgrades = {
+            cursor: {
+                cost: 10,
+                production: 1,
+                owned: 0,
+                costMultiplier: 1.15
+            },
+            grandma: {
+                cost: 100,
+                production: 5,
+                owned: 0,
+                costMultiplier: 1.15
+            },
+            farm: {
+                cost: 1000,
+                production: 20,
+                owned: 0,
+                costMultiplier: 1.15
+            },
+            factory: {
+                cost: 10000,
+                production: 100,
+                owned: 0,
+                costMultiplier: 1.15
+            }
+        };
+
+        function updateDisplay() {
+            document.getElementById('cookie-count').textContent = Math.floor(cookies);
+            document.getElementById('per-second').textContent = cookiesPerSecond;
+            
+            // アップグレードボタンの状態を更新
+            for (let upgrade in upgrades) {
+                const btn = document.getElementById(upgrade + '-btn');
+                const costSpan = document.getElementById(upgrade + '-cost');
+                const currentCost = Math.floor(upgrades[upgrade].cost * Math.pow(upgrades[upgrade].costMultiplier, upgrades[upgrade].owned));
+                
+                costSpan.textContent = currentCost;
+                btn.disabled = cookies < currentCost;
+            }
+        }
+
+        function clickCookie() {
+            cookies++;
+            updateDisplay();
+            
+            // クリック時のアニメーション
+            const floatingText = document.createElement('div');
+            floatingText.className = 'floating-text';
+            floatingText.textContent = '+1';
+            floatingText.style.left = event.clientX + 'px';
+            floatingText.style.top = event.clientY + 'px';
+            document.body.appendChild(floatingText);
+            
+            setTimeout(() => {
+                floatingText.remove();
+            }, 1000);
+        }
+
+        function buyUpgrade(type) {
+            const upgrade = upgrades[type];
+            const cost = Math.floor(upgrade.cost * Math.pow(upgrade.costMultiplier, upgrade.owned));
+            
+            if (cookies >= cost) {
+                cookies -= cost;
+                upgrade.owned++;
+                cookiesPerSecond += upgrade.production;
+                updateDisplay();
+            }
+        }
+
+        // 毎秒クッキーを生産
+        setInterval(() => {
+            cookies += cookiesPerSecond / 10;
+            updateDisplay();
+        }, 100);
+
+        // 初期表示を更新
+        updateDisplay();
+    </script>
+</body>
+</html>
